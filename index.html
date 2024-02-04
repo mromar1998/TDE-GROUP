@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COVID-19 Data</title>
+  <style>
+
+    .lowest-day {
+      color: green;
+    }
+
+    .highest-day {
+      color: red;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+
+    #additionalInfo {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+
+    #additionalInfo h2 {
+      color: #333;
+    }
+
+    #additionalInfo p {
+      margin: 8px 0;
+    }
+        button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 5px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <label for="countryDropdown">Select Country:</label>
+  <select id="countryDropdown">
+    <option value="USA">USA</option>
+    <option value="AUT">AUT</option>
+    <option value="SAU">SAU</option>
+  </select>
+
+  <button onclick="fetchCovidData()">Fetch Data</button>
+
+  <div id="result"></div>
+
+  <script>
+    let lowestActiveCases = Infinity;
+    let lowestActiveCasesDate = '';
+    let highestActiveCases = -1;
+    let highestActiveCasesDate = '';
+    let totalActiveCases = 0;
+
+    async function fetchCovidData() {
+      const apiUrl = 'https://covid-api.com/api/reports/total?'; // API
+      const dropdown = document.getElementById('countryDropdown');
+      const selectedCountry = dropdown.value;
+
+      // Create an array of dates for the first 10 days of April 2020
+      const dates = Array.from({ length: 10 }, (_, i) =>
+        new Date(2020, 3, i + 1).toISOString().slice(0, 10) // 10 days starting from April
+      );
+
+      const resultDiv = document.getElementById('result');
+      // Clear previous results
+      while (resultDiv.firstChild) {
+        resultDiv.removeChild(resultDiv.firstChild);
+      }
+
+      const table = document.createElement('table');
+      resultDiv.appendChild(table);
+
+      const tableHeader = document.createElement('thead');
+      table.appendChild(tableHeader);
+
+      const headerRow = document.createElement('tr');
+      tableHeader.appendChild(headerRow);
+
+      // Table headers
+      const headers = ['Date', 'Confirmed Cases', 'Deaths', 'Recovered', 'Active Cases', 'Fatality Rate'];
+      headers.forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        headerRow.appendChild(th);
+      });
+
+      const tableBody = document.createElement('tbody');
+      table.appendChild(tableBody);
+
+      for (const date of dates) {
+        const finalUrl = `${apiUrl}date=${date}&iso=${selectedCountry}`;
+
+        try {
+          const response = await fetch(finalUrl);
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          displayData(data, tableBody);
+
+          // Update lowest and highest active cases
+          const activeCases = data.data.active;
+          totalActiveCases += activeCases;
+
+          if (activeCases < lowestActiveCases) {
+            lowestActiveCases = activeCases;
+            lowestActiveCasesDate = date;
+          }
+
+          if (activeCases > highestActiveCases) {
+            highestActiveCases = activeCases;
+            highestActiveCasesDate = date;
+          }
+        } catch (error) {
+          console.error('Error fetching COVID-19 data:', error.message);
+          // Optionally display an error message to the user
+        }
+      }
+
+      // Calculate average active cases
+      const averageActiveCases = totalActiveCases / dates.length;
+
+      // Display additional information
+      const additionalInfoContainer = document.createElement('div');
+      additionalInfoContainer.id = 'additionalInfo';
+      resultDiv.appendChild(additionalInfoContainer);
+
+      const additionalInfoHeading = document.createElement('h2');
+      additionalInfoHeading.textContent = 'Additional Information';
+      additionalInfoContainer.appendChild(additionalInfoHeading);
+
+      const lowestDayInfo = document.createElement('p');
+      lowestDayInfo.textContent = `Day with the lowest active cases: ${lowestActiveCases} on ${lowestActiveCasesDate}`;
+      additionalInfoContainer.appendChild(lowestDayInfo);
+
+      const highestDayInfo = document.createElement('p');
+      highestDayInfo.textContent = `Day with the highest active cases: ${highestActiveCases} on ${highestActiveCasesDate}`;
+      additionalInfoContainer.appendChild(highestDayInfo);
+
+      const averageInfo = document.createElement('p');
+      averageInfo.textContent = `Average active cases: ${averageActiveCases.toFixed(2)}`;
+      additionalInfoContainer.appendChild(averageInfo);
+    }
+
+    function displayData(data, tableBody) {
+      const dayInfo = document.createElement('tr');
+      tableBody.appendChild(dayInfo);
+
+      const columns = [
+        data.data.date,
+        data.data.confirmed,
+        data.data.deaths,
+        data.data.recovered,
+        data.data.active,
+        data.data.fatality_rate
+      ];
+
+      columns.forEach(columnText => {
+        const td = document.createElement('td');
+        td.textContent = columnText;
+        dayInfo.appendChild(td);
+      });
+
+      // Apply color coding
+      const activeCases = data.data.active;
+      if (activeCases === lowestActiveCases) {
+        dayInfo.classList.add('lowest-day');
+      } else if (activeCases === highestActiveCases) {
+        dayInfo.classList.add('highest-day');
+      }
+    }
+  </script>
+
+</body>
+</html>
